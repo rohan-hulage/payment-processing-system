@@ -1,0 +1,93 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      # Global CORS configuration
+      globalcors:
+        cors-configurations:
+          '[/**]':
+            allowedOrigins:
+              - "http://localhost:3000"
+              - "http://localhost:4200"
+            allowedMethods:
+              - GET
+              - POST
+              - PUT
+              - DELETE
+              - OPTIONS
+            allowedHeaders:
+              - "*"
+            allowCredentials: true
+            maxAge: 3600
+
+      # Default filters applied to all routes
+      default-filters:
+        - AddResponseHeader=X-Response-Time, ${spring.application.name}
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+
+      # Route definitions (supplemented by GatewayConfig.java)
+      routes:
+        - id: auth-service
+          uri: ${services.auth-service.url:http://localhost:8081}
+          predicates:
+            - Path=/api/v1/auth/**
+          filters:
+            - AddRequestHeader=X-Gateway-Source, api-gateway
+
+        - id: payment-service
+          uri: ${services.payment-service.url:http://localhost:8082}
+          predicates:
+            - Path=/api/v1/payments/**
+          filters:
+            - AddRequestHeader=X-Gateway-Source, api-gateway
+
+        - id: transaction-service
+          uri: ${services.transaction-service.url:http://localhost:8083}
+          predicates:
+            - Path=/api/v1/transactions/**
+          filters:
+            - AddRequestHeader=X-Gateway-Source, api-gateway
+
+        - id: notification-service-health
+          uri: ${services.notification-service.url:http://localhost:8084}
+          predicates:
+            - Path=/notification/actuator/**
+          filters:
+            - StripPrefix=1
+
+# Service URLs (override via environment variables in Docker)
+services:
+  auth-service:
+    url: ${AUTH_SERVICE_URL:http://localhost:8081}
+  payment-service:
+    url: ${PAYMENT_SERVICE_URL:http://localhost:8082}
+  transaction-service:
+    url: ${TRANSACTION_SERVICE_URL:http://localhost:8083}
+  notification-service:
+    url: ${NOTIFICATION_SERVICE_URL:http://localhost:8084}
+
+jwt:
+  secret: ${JWT_SECRET:bXlTdXBlclNlY3JldEtleUZvckpXVEF1dGhTZXJ2aWNlUGF5bWVudFN5c3RlbTIwMjQ=}
+  issuer: payment-auth-service
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,gateway
+  endpoint:
+    health:
+      show-details: always
+    gateway:
+      enabled: true
+
+logging:
+  level:
+    com.payment.gateway: INFO
+    org.springframework.cloud.gateway: WARN
+    reactor.netty: WARN
