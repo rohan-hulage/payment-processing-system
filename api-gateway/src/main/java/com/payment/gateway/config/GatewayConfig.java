@@ -1,5 +1,6 @@
 package com.payment.gateway.config;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.gateway.route.RouteLocator;
 import org.springframework.cloud.gateway.route.builder.RouteLocatorBuilder;
 import org.springframework.context.annotation.Bean;
@@ -16,6 +17,15 @@ import org.springframework.http.HttpMethod;
 @Configuration
 public class GatewayConfig {
 
+    @Value("${services.auth-service.url:http://localhost:8081}")
+    private String authServiceUrl;
+
+    @Value("${services.payment-service.url:http://localhost:8082}")
+    private String paymentServiceUrl;
+
+    @Value("${services.transaction-service.url:http://localhost:8083}")
+    private String transactionServiceUrl;
+
     @Bean
     public RouteLocator customRouteLocator(RouteLocatorBuilder builder) {
         return builder.routes()
@@ -27,7 +37,7 @@ public class GatewayConfig {
                     .addRequestHeader("X-Gateway-Source", "api-gateway")
                     .removeRequestHeader("Cookie")
                 )
-                .uri("${services.auth-service.url:http://localhost:8081}")
+                .uri(authServiceUrl)
             )
 
             // Payment Service — JWT required (enforced by JwtAuthGatewayFilter)
@@ -36,12 +46,8 @@ public class GatewayConfig {
                 .filters(f -> f
                     .addRequestHeader("X-Gateway-Source", "api-gateway")
                     .removeRequestHeader("Cookie")
-                    .circuitBreaker(config -> config
-                        .setName("payment-service-cb")
-                        .setFallbackUri("forward:/fallback/payment")
-                    )
                 )
-                .uri("${services.payment-service.url:http://localhost:8082}")
+                .uri(paymentServiceUrl)
             )
 
             // Transaction Service — JWT required
@@ -50,12 +56,8 @@ public class GatewayConfig {
                 .filters(f -> f
                     .addRequestHeader("X-Gateway-Source", "api-gateway")
                     .removeRequestHeader("Cookie")
-                    .circuitBreaker(config -> config
-                        .setName("transaction-service-cb")
-                        .setFallbackUri("forward:/fallback/transaction")
-                    )
                 )
-                .uri("${services.transaction-service.url:http://localhost:8083}")
+                .uri(transactionServiceUrl)
             )
 
             .build();

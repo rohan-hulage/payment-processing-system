@@ -5,6 +5,7 @@ import com.payment.auth.dto.LoginRequest;
 import com.payment.auth.dto.RegisterRequest;
 import com.payment.auth.model.Role;
 import com.payment.auth.model.User;
+import com.payment.auth.repository.RoleRepository;
 import com.payment.auth.repository.UserRepository;
 import com.payment.common.exception.PaymentException;
 import lombok.RequiredArgsConstructor;
@@ -29,6 +30,7 @@ import java.util.stream.Collectors;
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
@@ -54,8 +56,10 @@ public class AuthService {
             );
         }
 
-        Role userRole = new Role();
-        userRole.setName("ROLE_USER");
+        // The ROLE_USER row should already exist due to Flyway migrations.
+        // Still, fetch-or-create to keep registration idempotent.
+        Role userRole = roleRepository.findByName("ROLE_USER")
+                .orElseGet(() -> roleRepository.save(Role.builder().name("ROLE_USER").build()));
 
         User user = User.builder()
                 .username(request.getUsername())
